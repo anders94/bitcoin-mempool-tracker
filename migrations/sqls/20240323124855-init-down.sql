@@ -1,1 +1,2 @@
-/* Replace with your SQL commands */
+DROP TABLE txos;
+DROP TABLE txs;
