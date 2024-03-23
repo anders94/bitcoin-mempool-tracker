@@ -18,6 +18,6 @@ CREATE TABLE txos (
   txid               TEXT            NOT NULL,
   idx                INT             NOT NULL,
   amount             INT             NOT NULL,
-  spent_in_txid      TEXT,
+  spent_in_txid      TEXT            REFERENCES txs(txid),
   CONSTRAINT pk_txos_txid_idx PRIMARY KEY (txid, idx)
 ) WITH (OIDS=FALSE);
