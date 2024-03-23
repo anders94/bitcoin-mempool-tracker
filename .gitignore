@@ -1,0 +1,10 @@
+*~
+.*~
+*.txt
+*.sqlite
+node_modules/
+.DS_Store
+run
+log/
+env/
+supervise/

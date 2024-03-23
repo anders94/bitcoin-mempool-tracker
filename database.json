@@ -1,0 +1,28 @@
+{
+    "defaultEnv": "dev",
+    "sql-file": true,
+    "dev": {
+	"driver": "pg",
+	"user": {"ENV": "PGUSER"},
+	"password": {"ENV": "PGPASSWORD"},
+	"host": {"ENV": "PGHOST"},
+	"port": {"ENV": "PGPORT"},
+	"database": {"ENV": "PGDATABASE"}
+    },
+    "test": {
+	"driver": "pg",
+	"user": {"ENV": "PGUSER"},
+	"password": {"ENV": "PGPASSWORD"},
+	"host": {"ENV": "PGHOST"},
+	"port": {"ENV": "PGPORT"},
+	"database": {"ENV": "PGDATABASE"}
+    },
+    "prod": {
+	"driver": "pg",
+	"user": {"ENV": "PGUSER"},
+	"password": {"ENV": "PGPASSWORD"},
+	"host": {"ENV": "PGHOST"},
+	"port": {"ENV": "PGPORT"},
+	"database": {"ENV": "PGDATABASE"}
+    }
+}
