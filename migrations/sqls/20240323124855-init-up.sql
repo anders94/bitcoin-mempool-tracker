@@ -1,11 +1,11 @@
 -- --------------------------------------------------------
 -- -- Table: txs
 -- --------------------------------------------------------
-
 CREATE TABLE txs (
   txid               TEXT            NOT NULL UNIQUE,
-  mempool_date       TIMESTAMP,
-  block_date         TIMESTAMP,
+  mempool_entry      TIMESTAMP,
+  mempool_exit       TIMESTAMP,
+  block_entry        TIMESTAMP,
   value_in           BIGINT,
   value_out          BIGINT,
   bytes              INT
@@ -14,7 +14,6 @@ CREATE TABLE txs (
 -- --------------------------------------------------------
 -- -- Table: txos
 -- --------------------------------------------------------
-
 CREATE TABLE txos (
   txid               TEXT            NOT NULL,
   idx                INT             NOT NULL,
