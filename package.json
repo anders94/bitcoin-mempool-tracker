@@ -9,6 +9,7 @@
   "author": "Anders Brownworth",
   "license": "MIT",
   "dependencies": {
+    "bitcoind-rpc": "^0.9.1",
     "db-migrate": "^0.11.14",
     "db-migrate-pg": "^1.5.2"
   }
