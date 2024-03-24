@@ -5,6 +5,15 @@ module.exports = {
 	port: process.env.RPCPORT || 8332,
 	user: process.env.RPCUSER || 'user',
 	pass: process.env.RPCPASS || 'supersecretpassword'
+    },
+    postgres: {
+        host: process.env.PGHOST || 'localhost',
+        database: process.env.PGDATABASE || 'bitcoin_dev',
+        user: process.env.PGUSER || 'bitcoin',
+        port: process.env.PGPORT || 5432,
+        password: process.env.PGPASSWORD || 'supersecretpassword',
+        ssl: false,
+        debug: false
     }
 
 }

@@ -1,8 +1,9 @@
 const RpcClient = require('bitcoind-rpc');
 const util = require('util');
+const db = require('./db');
 const config = require('./config');
 
-const delay = 1 * 1000;
+const delay = 5 * 1000;
 
 const rpc = new RpcClient({
     protocol: config.rpc.protocol,
@@ -43,6 +44,11 @@ const update = async () => {
 	if (!mempool[txid]) {
 	    console.log('adding', txid);
 	    mempool[txid] = 1;
+	    const res = await db.query('SELECT * FROM txs WHERE txid = $1', [txid]);
+	    if (res.rows.length == 0)
+		await db.query('INSERT INTO txs (txid, mempool_entry) VALUES ($1, now())', [txid]);
+	    else
+		console.log('skipping', txid, 'already in db - maybe there was a reorg');
 
 	}
 
@@ -56,20 +62,26 @@ const update = async () => {
 	if (!txids.find(el => el == memid)) {
 	    console.log('dropping', memid);
 	    delete mempool[memid];
+	    const res = await db.query('UPDATE txs SET mempool_exit = now() WHERE txid = $1', [memid]);
 
 	}
 
     }
-    console.log();
+    console.log('mempool size:', memids.length, '\n');
 
 }
 
 const mempool = {};
 
 (async () => {
-    await update;
-    await sleep(delay);
+    const tmp = await getMemPool();
+    for (let x = 0; x < tmp.length; x++) {
+	mempool[tmp[x]] = 1;
+	await db.query('INSERT INTO txs (txid) VALUES ($1) ON CONFLICT DO NOTHING', [tmp[x]]);
+
+    }
+    console.log('mempool size:', Object.keys(mempool).length, '\n');
+
     setInterval(update, delay);
 
 })();
-
