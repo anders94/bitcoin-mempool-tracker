@@ -1,7 +1,7 @@
 *~
 .*~
 *.txt
-*.sqlite
+*.sql
 node_modules/
 .DS_Store
 run

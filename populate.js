@@ -60,19 +60,17 @@ const decodeRawTransaction = async (tx) => {
 
 (async () => {
     while (true) {
-	const txRes = await db.query('SELECT txid FROM txs WHERE bytes IS NULL');
+	const txRes = await db.query('SELECT txid, raw FROM txs WHERE value_in IS NULL');
 	for (let x = 0; x < txRes.rows.length; x++) {
 	    const txid = txRes.rows[x].txid;
+	    const rtx = txRes.rows[x].raw;
 	    console.log(txid);
-	    const rtx = await getRawTransaction(txid);
 	    if (rtx) {
 		const tx = await decodeRawTransaction(rtx);
 
 		// https://en.bitcoin.it/wiki/Weight_units
 		console.log((x+1) + ' of ' + txRes.rows.length + ' = ' + ((x/txRes.rows.length) * 100).toFixed(2) + '%');
-
-		console.log(txid, 'size', tx.size, 'vsize', tx.vsize, 'weight', tx.weight)
-		//console.log(util.inspect(tx, {depth: 6}));
+		console.log('  ', txid, 'size', tx.size, 'vsize', tx.vsize, 'weight', tx.weight)
 
 		// go through the vins and find the value of each output
 		let inval = 0n;
@@ -85,7 +83,9 @@ const decodeRawTransaction = async (tx) => {
 		    for (let w = 0; w < vintx.vout.length; w++) {
 			if (vintx.vout[w].n == vin.vout) {
 			    val = toInt(vintx.vout[w].value);
-			    await db.query('INSERT InTO txos (txid, idx, amount) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [vin.txid, vintx.vout[w].n, val]);
+			    await db.query(
+				'INSERT InTO txos (txid, idx, amount) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+				[vin.txid, vintx.vout[w].n, val]);
 
 			}
 
@@ -103,7 +103,9 @@ const decodeRawTransaction = async (tx) => {
 		}
 		const fee = inval - outval;
 
-		db.query('UPDATE txs SET value_in = $1, value_out = $2, bytes = $3 WHERE txid = $4', [inval, outval, tx.weight, txid]);
+		db.query(
+		    'UPDATE txs SET value_in = $1, value_out = $2, weight = $3 WHERE txid = $4',
+		    [inval, outval, tx.weight, txid]);
 
 		console.log('  fee ------------------------------------------------------------ =', fee.toString());
 		console.log();

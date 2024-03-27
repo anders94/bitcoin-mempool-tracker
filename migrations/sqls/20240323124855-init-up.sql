@@ -9,7 +9,8 @@ CREATE TABLE blocks (
   id                 UUID            NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   height             INT             NOT NULL,
   hash               TEXT            NOT NULL,
-  created            TIMESTAMP       NOT NULL
+  previoushash       TEXT            NOT NULL,
+  created            TIMESTAMP       NOT NULL DEFAULT now()
 ) WITH (OIDS=FALSE);
 
 -- --------------------------------------------------------
@@ -23,7 +24,8 @@ CREATE TABLE txs (
   block_id           UUID            REFERENCES blocks(id),
   value_in           BIGINT,
   value_out          BIGINT,
-  bytes              INT
+  weight             INT,
+  raw                TEXT
 ) WITH (OIDS=FALSE);
 
 -- --------------------------------------------------------

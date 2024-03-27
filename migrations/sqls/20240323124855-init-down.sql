@@ -1,2 +1,3 @@
 DROP TABLE txos;
 DROP TABLE txs;
+DROP TABLE blocks;
