@@ -3,7 +3,7 @@ const util = require('util');
 const db = require('./db');
 const config = require('./config');
 
-const delay = 5 * 1000;
+const delay = 1 * 1000;
 
 const rpc = new RpcClient({
     protocol: config.rpc.protocol,
@@ -110,14 +110,15 @@ const updateTip = async () => {
 };
 
 const update = async () => {
+    console.log('loop start');
     const txids = await getMemPool();
 
-    // find new entries
+    console.log('finding new entries');
     for (let x = 0; x < txids.length; x++) {
 	const txid = txids[x];
 
 	if (!mempool[txid]) {
-	    console.log('adding', txid);
+	    console.log('  adding', txid);
 	    mempool[txid] = 1;
 	    const res = await db.query('SELECT * FROM txs WHERE txid = $1', [txid]);
 	    if (res.rows.length == 0) {
@@ -126,28 +127,30 @@ const update = async () => {
 
 	    }
 	    else
-		console.log('skipping', txid, 'already in db - maybe there was a reorg');
+		console.log('  skipping', txid, 'already in db - maybe there was a reorg');
 
 	}
 
     }
 
-    // find dropped entries
     const memids = Object.keys(mempool);
+    console.log('finding dropped entries', memids.length, txids.length);
     for (let x = 0; x < memids.length; x++) {
-	const memid = memids[x];
-
-	if (!txids.find(el => el == memid)) {
-	    console.log('dropping', memid);
-	    delete mempool[memid];
-	    await db.query('UPDATE txs SET mempool_exit = now() WHERE txid = $1', [memid]);
+	if (txids.indexOf(memids[x]) == -1) {
+            console.log('  dropping', memids[x]);
+	    delete mempool[memids[x]];
+	    await db.query('UPDATE txs SET mempool_exit = now() WHERE txid = $1', [memids[x]]);
 
 	}
 
     }
+    console.log('done finding dropped entries');
+    console.log();
     console.log('mempool size:', memids.length, '\n');
 
     await updateTip();
+    console.log('loop end');
+    console.log();
 
 }
 
@@ -157,6 +160,7 @@ const mempool = {};
     await updateTip();
 
     const tmp = await getMemPool();
+
     for (let x = 0; x < tmp.length; x++) {
 	console.log('adding', x, 'of', tmp.length, tmp[x]);
 	mempool[tmp[x]] = 1;
@@ -172,6 +176,10 @@ const mempool = {};
     }
     console.log('mempool size:', Object.keys(mempool).length, '\n');
 
-    setInterval(update, delay);
+    while (true) {
+	await update();
+	await sleep(delay);
+
+    }
 
 })();

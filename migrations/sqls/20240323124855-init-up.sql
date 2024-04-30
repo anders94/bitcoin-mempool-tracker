@@ -24,7 +24,9 @@ CREATE TABLE txs (
   block_id           UUID            REFERENCES blocks(id),
   value_in           BIGINT,
   value_out          BIGINT,
-  weight             INT,
+  txsize             INT,
+  txvsize            INT,
+  txweight           INT,
   raw                TEXT
 ) WITH (OIDS=FALSE);
 

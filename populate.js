@@ -79,19 +79,24 @@ const decodeRawTransaction = async (tx) => {
 		    const vinrtx = await getRawTransaction(vin.txid);
 		    const vintx = await decodeRawTransaction(vinrtx);
 
-		    let val = 0;
-		    for (let w = 0; w < vintx.vout.length; w++) {
-			if (vintx.vout[w].n == vin.vout) {
-			    val = toInt(vintx.vout[w].value);
-			    await db.query(
-				'INSERT InTO txos (txid, idx, amount) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-				[vin.txid, vintx.vout[w].n, val]);
+		    if (vintx) {
+			let val = 0;
+			for (let w = 0; w < vintx.vout.length; w++) {
+			    if (vintx.vout[w].n == vin.vout) {
+				val = toInt(vintx.vout[w].value);
+				await db.query(
+				    'INSERT InTO txos (txid, idx, amount) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+				    [vin.txid, vintx.vout[w].n, val]);
+
+			    }
 
 			}
+			inval += val;
+			console.log(' ', vin.txid, '+', val.toString());
 
 		    }
-		    inval += val;
-		    console.log(' ', vin.txid, '+', val.toString());
+		    else
+			console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX Didn\'t get a raw transaction');
 
 		}
 		// add up outputs
@@ -103,9 +108,10 @@ const decodeRawTransaction = async (tx) => {
 		}
 		const fee = inval - outval;
 
-		db.query(
-		    'UPDATE txs SET value_in = $1, value_out = $2, weight = $3 WHERE txid = $4',
-		    [inval, outval, tx.weight, txid]);
+		if (inval > 0)
+		    db.query(
+			'UPDATE txs SET value_in = $1, value_out = $2, txsize = $3, txvsize = $4, txweight = $5 WHERE txid = $6',
+			[inval, outval, tx.size, tx.vsize, tx.weight, txid]);
 
 		console.log('  fee ------------------------------------------------------------ =', fee.toString());
 		console.log();
