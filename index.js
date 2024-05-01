@@ -168,7 +168,7 @@ const mempool = {};
 	if (res.rows.length == 0 || res.rows[0].raw == '') {
 	    const raw = await getRawTransaction(tmp[x]);
 	    await db.query(
-		'INSERT INTO txs (txid, mempool_entry, raw) VALUES ($1, now(), $2) ON CONFLICT DO NOTHING',
+		'INSERT INTO txs (txid, raw) VALUES ($1, $2) ON CONFLICT DO NOTHING',
 		[tmp[x], raw]);
 
 	}
