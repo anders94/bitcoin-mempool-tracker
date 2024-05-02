@@ -91,6 +91,7 @@ const decodeRawTransaction = async (tx) => {
 		    if (respends.rows.length > 0) {
 			console.log('UPDATE txos SET spent_in_txid = ' + res.rows[x].txid + ' WHERE txid = ' + tx.vin[s].txid + ' AND idx = ' + tx.vin[s].vout);
 			await db.query('UPDATE txos SET spent_in_txid = $1 WHERE txid = $2 AND idx = $3', [res.rows[x].txid, tx.vin[s].txid, tx.vin[s].vout]);
+			await sleep(1000);
 
 		    }
 
