@@ -3,7 +3,7 @@ const util = require('util');
 const config = require('./config');
 const db = require('./db');
 
-const delay = 1000;
+const delay = 1;
 
 const rpc = new RpcClient({
     protocol: config.rpc.protocol,
