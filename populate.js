@@ -53,7 +53,7 @@ const decodeRawTransaction = async (tx) => {
 		const vin = dtx.vin[d];
 		console.log(' ', d + 1, 'of', dtx.vin.length, 'destroys', vin.txid, vin.vout);
 		// add it if we don't have it
-		const inRes = await db.query('SELECT txid FROM txis WHERE txid = $1 AND idx = $2', [vin.txid, vin.vout]);
+		const inRes = await db.query('SELECT txid FROM txis WHERE txid = $1 AND idx = $2 AND spent_in_txid = $3', [vin.txid, vin.vout, dtx.txid]);
 		if (inRes.rows.length == 0)
 		    await db.query('INSERT INTO txis (txid, idx, spent_in_txid) VALUES ($1, $2, $3)', [vin.txid, vin.vout, dtx.txid]);
 
