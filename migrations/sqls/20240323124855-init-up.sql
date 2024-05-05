@@ -31,13 +31,24 @@ CREATE TABLE txs (
 ) WITH (OIDS=FALSE);
 
 -- --------------------------------------------------------
--- -- Table: txos
+-- -- Table: txis - transaction inputs
+-- --------------------------------------------------------
+
+CREATE TABLE txis (
+  txid               TEXT            NOT NULL,
+  idx                INT             NOT NULL,
+  spent_in_txid      TEXT            NOT NULL REFERENCES txs(txid),
+  CONSTRAINT pk_txis_txid_idx PRIMARY KEY (txid, idx)
+) WITH (OIDS=FALSE);
+
+-- --------------------------------------------------------
+-- -- Table: txos - transaction outputs
 -- --------------------------------------------------------
 
 CREATE TABLE txos (
-  txid               TEXT            NOT NULL,
+  txid               TEXT            NOT NULL REFERENCES txs(txid),
   idx                INT             NOT NULL,
   amount             BIGINT          NOT NULL,
-  spent_in_txid      TEXT            REFERENCES txs(txid),
   CONSTRAINT pk_txos_txid_idx PRIMARY KEY (txid, idx)
 ) WITH (OIDS=FALSE);
+
