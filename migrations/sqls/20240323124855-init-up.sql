@@ -37,8 +37,7 @@ CREATE TABLE txs (
 CREATE TABLE txis (
   txid               TEXT            NOT NULL,
   idx                INT             NOT NULL,
-  spent_in_txid      TEXT            NOT NULL REFERENCES txs(txid),
-  CONSTRAINT pk_txis_txid_idx PRIMARY KEY (txid, idx)
+  spent_in_txid      TEXT            NOT NULL REFERENCES txs(txid)
 ) WITH (OIDS=FALSE);
 
 -- --------------------------------------------------------
@@ -48,7 +47,6 @@ CREATE TABLE txis (
 CREATE TABLE txos (
   txid               TEXT            NOT NULL REFERENCES txs(txid),
   idx                INT             NOT NULL,
-  amount             BIGINT          NOT NULL,
-  CONSTRAINT pk_txos_txid_idx PRIMARY KEY (txid, idx)
+  amount             BIGINT          NOT NULL
 ) WITH (OIDS=FALSE);
 
