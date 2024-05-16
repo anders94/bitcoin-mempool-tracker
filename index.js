@@ -39,6 +39,25 @@ const decodeRawTransaction = async (tx) => {
 
 };
 
+const getBlock = async (hash) => {
+    let value;
+    await new Promise((resolve) => {
+	rpc.getBlock(hash, (err, res) => {
+	    if (err)
+		console.log(err);
+	    else
+		value = res.result;
+
+	    return resolve();
+
+	});
+
+    });
+
+    return value;
+
+};
+
 const sequence = async (data) => {
     const hash = data.subarray(0, 32).toString('hex');
     const cmd = data.subarray(32, 33).toString('ascii');
@@ -52,16 +71,29 @@ const sequence = async (data) => {
     case 'R':
 	const seq2 = data.readUIntLE(34, 4);
 	console.log('removing', hash, seq2);
+	// TODO: add if we don't already have this one
 	await db.query('UPDATE txs SET mempool_exit = now() WHERE txid = $1', [hash]);
 	break;
     case 'C':
 	console.log('blockhash connected', hash);
+	const block1 = await getBlock(hash);
+
+	if (block1) {
+	    const res = await db.query('INSERT INTO blocks (height, hash, previoushash) VALUES ($1, $2, $3) RETURNING id', [block1.height, block1.hash, block1.previoushash]);
+	    for (let t = 0; t < block1.tx.length; t++)
+		await db.query('UPDATE txs SET block_id = $1 WHERE txid = $2', [res.rows[0].id, block1.tx[t]]);
+
+	}
+	else
+	    console.log('skipping block', hash, 'no such block');
 	break;
     case 'R':
 	console.log('blockhash disconnected', hash);
+	await db.query('UPDATE txs SET block_id = NULL WHERE block_id = (SELECT id FROM blocks WHERE hash = $1)', [hash]);
 	break;
     default:
 	console.log('unrecognized command', cmd);
+
     }
 
 };
@@ -117,7 +149,6 @@ const rawtx = async (data) => {
 	}
     });
 
-    console.log('subscribing');
     sock.subscribe('rawtx');
     sock.subscribe('sequence');
 
