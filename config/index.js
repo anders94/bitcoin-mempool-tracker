@@ -14,6 +14,7 @@ module.exports = {
         password: process.env.PGPASSWORD || 'supersecretpassword',
         ssl: false,
         debug: false
-    }
+    },
+    zmq: 'tcp://127.0.0.1:28332'
 
 }

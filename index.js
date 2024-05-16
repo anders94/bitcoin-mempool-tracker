@@ -1,9 +1,10 @@
 const RpcClient = require('bitcoind-rpc');
-const util = require('util');
+const crypto = require('crypto');
+const zmq = require('zeromq');
 const db = require('./db');
-const config = require('./config');
 
-const delay = 1 * 1000;
+const sock = zmq.socket('sub');
+const config = require('./config');
 
 const rpc = new RpcClient({
     protocol: config.rpc.protocol,
@@ -11,68 +12,26 @@ const rpc = new RpcClient({
     port: config.rpc.port,
     user: config.rpc.user,
     pass: config.rpc.pass
-});
 
-const sleep = async (ms) => new Promise(resolve => setTimeout(resolve, ms));
+});
 
 const toInt = (num) => {
     return BigInt(Math.ceil(num * 100000000));
 
 };
 
-const getMemPool = async () => {
-    const res = await new Promise((resolve) => {
-	rpc.getRawMemPool((err, res) => {
-	    if (err)
-		console.log(err);
-	    return resolve(res.result);
-
-	});
-
-    });
-    return res;
-
-};
-
-const getBestBlockHash = async () => {
-    const res = await new Promise((resolve) => {
-        rpc.getBestBlockHash((err, res) => {
-            if (err)
-                console.log(err);
-            return resolve(res.result);
-
-        });
-
-    });
-    return res;
-
-};
-
-const getBlock = async (hash) => {
-    const res = await new Promise((resolve) => {
-        rpc.getBlock(hash, 1, (err, res) => {
-            if (err)
-                console.log(err);
-            return resolve(res.result);
-
-        });
-
-    });
-    return res;
-
-};
-
-const getRawTransaction = async (txid) => {
+const decodeRawTransaction = async (tx) => {
     let value;
     await new Promise((resolve) => {
-        rpc.getRawTransaction(txid, async (err, res) => {
-            if (err)
-                console.log(err);
-            else
-                value = res.result;
+	rpc.decodeRawTransaction(tx, (err, res) => {
+	    if (err)
+		console.log(err);
+	    else
+		value = res.result;
 
-            return resolve();
-        });
+	    return resolve();
+
+	});
 
     });
 
@@ -80,106 +39,86 @@ const getRawTransaction = async (txid) => {
 
 };
 
-const updateTip = async () => {
-    const hash = await getBestBlockHash();
-    const blockRes = await db.query(
-        'SELECT * FROM blocks WHERE hash = $1',
-        [hash]);
+const sequence = async (data) => {
+    const hash = data.subarray(0, 32).toString('hex');
+    const cmd = data.subarray(32, 33).toString('ascii');
 
-    if (blockRes.rows.length == 0) {
-	console.log('adding new block', hash);
-        const block = await getBlock(hash);
-        const insertRes = await db.query(
-            'INSERT INTO blocks (height, hash, previoushash) VALUES ($1, $2, $3) RETURNING id',
-            [block.height, hash, block.previousblockhash]);
-
-        if (insertRes.rows.length == 1) {
-            for (let x = 0; x < block.tx.length; x++)
-                await db.query(
-                    'UPDATE txs SET block_id = $1 WHERE txid = $2',
-                    [insertRes.rows[0].id, block.tx[x]]);
-
-        }
-        else
-            console.log('block insert didnt work');
-
+    switch (cmd) {
+    case 'A':
+	const seq1 = data.readUIntLE(34, 4);
+	console.log('adding', hash, seq1);
+	await db.query('INSERT INTO txs (txid, mempool_entry) VALUES ($1, now())', [hash]);
+	break;
+    case 'R':
+	const seq2 = data.readUIntLE(34, 4);
+	console.log('removing', hash, seq2);
+	await db.query('UPDATE txs SET mempool_exit = now() WHERE txid = $1', [hash]);
+	break;
+    case 'C':
+	console.log('blockhash connected', hash);
+	break;
+    case 'R':
+	console.log('blockhash disconnected', hash);
+	break;
+    default:
+	console.log('unrecognized command', cmd);
     }
-    else
-        console.log('tip hasn\'t changed', hash);
 
 };
 
-const update = async () => {
-    console.log('loop start');
-    const txids = await getMemPool();
+const rawtx = async (data) => {
+    const tx = await decodeRawTransaction(data.toString('hex'));
+    await db.query('UPDATE txs SET raw = $1 WHERE txid = $2', [data.toString('hex'), tx.txid]);
 
-    console.log('finding new entries');
-    for (let x = 0; x < txids.length; x++) {
-	const txid = txids[x];
-
-	if (!mempool[txid]) {
-	    console.log('  adding', txid);
-	    mempool[txid] = 1;
-	    const res = await db.query('SELECT * FROM txs WHERE txid = $1', [txid]);
-	    if (res.rows.length == 0) {
-		const raw = await getRawTransaction(txid);
-		await db.query('INSERT INTO txs (txid, mempool_entry, raw) VALUES ($1, now(), $2)', [txid, raw]);
-
-	    }
-	    else
-		console.log('  skipping', txid, 'already in db - maybe there was a reorg');
+    // record the inputs
+    if (tx && tx.vin)
+	for (let t = 0; t < tx.vin.length; t++) {
+	    const vin = tx.vin[t];
+	    console.log(' ', tx.txid, t + 1, 'of', tx.vin.length, 'destroys', vin.txid, vin.vout);
+	    // add it if we don't have it
+	    const inRes = await db.query('SELECT txid FROM txis WHERE txid = $1 AND idx = $2 AND spent_in_txid = $3', [vin.txid, vin.vout, tx.txid]);
+	    if (inRes.rows.length == 0)
+		await db.query('INSERT INTO txis (txid, idx, spent_in_txid) VALUES ($1, $2, $3)', [vin.txid, vin.vout, tx.txid]);
 
 	}
+    else
+	console.log('skipping transaction', tx, 'no vins');
 
-    }
-
-    const memids = Object.keys(mempool);
-    console.log('finding dropped entries', memids.length, txids.length);
-    for (let x = 0; x < memids.length; x++) {
-	if (txids.indexOf(memids[x]) == -1) {
-            console.log('  dropping', memids[x]);
-	    delete mempool[memids[x]];
-	    await db.query('UPDATE txs SET mempool_exit = now() WHERE txid = $1', [memids[x]]);
+    // record the outputs
+    if (tx && tx.vout)
+	for (let t = 0; t < tx.vout.length; t++) {
+	    const vout = tx.vout[t];
+	    console.log(' ', tx.txid,  t + 1, 'of', tx.vout.length, 'creates', tx.txid, vout.n, 'value', vout.value);
+	    // add it if we don't have it
+	    const outRes = await db.query('SELECT txid FROM txos WHERE txid = $1 AND idx = $2', [tx.txid, vout.n]);
+	    if (outRes.rows.length == 0)
+		await db.query('INSERT INTO txos (txid, idx, amount) VALUES ($1, $2, $3)', [tx.txid, vout.n, toInt(vout.value)]);
 
 	}
+    else
+	console.log('skipping transaction', tx, 'no vouts');
 
-    }
-    console.log('done finding dropped entries');
-    console.log();
-    console.log('mempool size:', memids.length, '\n');
-
-    await updateTip();
-    console.log('loop end');
-    console.log();
-
-}
-
-const mempool = {};
+};
 
 (async () => {
-    await updateTip();
+    sock.connect(config.zmq);
+    console.log('connected');
 
-    const tmp = await getMemPool();
-
-    for (let x = 0; x < tmp.length; x++) {
-	console.log('adding', x, 'of', tmp.length, tmp[x]);
-	mempool[tmp[x]] = 1;
-	const res = await db.query('SELECT raw FROM txs WHERE txid = $1', [tmp[x]]);
-	if (res.rows.length == 0 || res.rows[0].raw == '') {
-	    const raw = await getRawTransaction(tmp[x]);
-	    await db.query(
-		'INSERT INTO txs (txid, raw) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-		[tmp[x], raw]);
-
+    sock.on('message', (topic, data) => {
+	switch (topic.toString()) {
+	case 'sequence':
+	    sequence(data);
+	    break;
+	case 'rawtx':
+	    rawtx(data);
+	    break;
+	default:
+	    console.log('unknown topic', topic.toString());
 	}
+    });
 
-    }
-    console.log('mempool size:', Object.keys(mempool).length, '\n');
-
-    while (true) {
-	await update();
-	await sleep(delay);
-
-    }
+    console.log('subscribing');
+    sock.subscribe('rawtx');
+    sock.subscribe('sequence');
 
 })();
