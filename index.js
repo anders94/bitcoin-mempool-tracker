@@ -2,6 +2,7 @@ const RpcClient = require('bitcoind-rpc');
 const crypto = require('crypto');
 const zmq = require('zeromq');
 const db = require('./db');
+const Throttle = require('./throttle');
 
 const sock = zmq.socket('sub');
 const config = require('./config');
@@ -14,6 +15,8 @@ const rpc = new RpcClient({
     pass: config.rpc.pass
 
 });
+
+const throttle = new Throttle();
 
 const toInt = (num) => {
     return BigInt(Math.ceil(num * 100000000));
@@ -80,8 +83,11 @@ const sequence = async (data) => {
 
 	if (block1) {
 	    const res = await db.query('INSERT INTO blocks (height, hash, previoushash) VALUES ($1, $2, $3) RETURNING id', [block1.height, block1.hash, block1.previoushash]);
-	    for (let t = 0; t < block1.tx.length; t++)
+	    for (let t = 0; t < block1.tx.length; t++) {
+		console.log('update tx', block1.tx[t], 'to', res.rows[0].id);
 		await db.query('UPDATE txs SET block_id = $1 WHERE txid = $2', [res.rows[0].id, block1.tx[t]]);
+
+	    }
 
 	}
 	else
@@ -114,7 +120,7 @@ const rawtx = async (data) => {
 
 	}
     else
-	console.log('skipping transaction', tx, 'no vins');
+	console.log('skipping transaction', tx.txid, 'no vins');
 
     // record the outputs
     if (tx && tx.vout)
@@ -128,13 +134,12 @@ const rawtx = async (data) => {
 
 	}
     else
-	console.log('skipping transaction', tx, 'no vouts');
+	console.log('skipping transaction', tx.txid, 'no vouts');
 
 };
 
 (async () => {
     sock.connect(config.zmq);
-    console.log('connected');
 
     sock.on('message', (topic, data) => {
 	switch (topic.toString()) {
@@ -142,7 +147,7 @@ const rawtx = async (data) => {
 	    sequence(data);
 	    break;
 	case 'rawtx':
-	    rawtx(data);
+	    throttle.enqueue(() => rawtx(data));
 	    break;
 	default:
 	    console.log('unknown topic', topic.toString());
