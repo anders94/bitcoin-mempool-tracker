@@ -109,30 +109,40 @@ const rawtx = async (data) => {
     await db.query('UPDATE txs SET raw = $1 WHERE txid = $2', [data.toString('hex'), tx.txid]);
 
     // record the inputs
-    if (tx && tx.vin)
+    if (tx && tx.vin) {
+	let value_in = 0n;
 	for (let t = 0; t < tx.vin.length; t++) {
 	    const vin = tx.vin[t];
 	    console.log(' ', tx.txid, t + 1, 'of', tx.vin.length, 'destroys', vin.txid, vin.vout);
+	    value_in += toInt(vin.vout);
 	    // add it if we don't have it
 	    const inRes = await db.query('SELECT txid FROM txis WHERE txid = $1 AND idx = $2 AND spent_in_txid = $3', [vin.txid, vin.vout, tx.txid]);
 	    if (inRes.rows.length == 0)
 		await db.query('INSERT INTO txis (txid, idx, spent_in_txid) VALUES ($1, $2, $3)', [vin.txid, vin.vout, tx.txid]);
 
 	}
+	await db.query('UPDATE txs SET value_in = $2 WHERE txid = $1', [tx.txid, value_in]);
+
+    }
     else
 	console.log('skipping transaction', tx.txid, 'no vins');
 
     // record the outputs
-    if (tx && tx.vout)
+    if (tx && tx.vout) {
+	let value_out = 0n;
 	for (let t = 0; t < tx.vout.length; t++) {
 	    const vout = tx.vout[t];
 	    console.log(' ', tx.txid,  t + 1, 'of', tx.vout.length, 'creates', tx.txid, vout.n, 'value', vout.value);
+	    value_out += toInt(vout.value);
 	    // add it if we don't have it
 	    const outRes = await db.query('SELECT txid FROM txos WHERE txid = $1 AND idx = $2', [tx.txid, vout.n]);
 	    if (outRes.rows.length == 0)
 		await db.query('INSERT INTO txos (txid, idx, amount) VALUES ($1, $2, $3)', [tx.txid, vout.n, toInt(vout.value)]);
 
 	}
+	await db.query('UPDATE txs SET value_out = $2 WHERE txid = $1', [tx.txid, value_out]);
+
+    }
     else
 	console.log('skipping transaction', tx.txid, 'no vouts');
 
