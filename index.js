@@ -1,5 +1,4 @@
 const RpcClient = require('bitcoind-rpc');
-const crypto = require('crypto');
 const zmq = require('zeromq');
 const db = require('./db');
 const Throttle = require('./throttle');
@@ -20,6 +19,25 @@ const throttle = new Throttle();
 
 const toInt = (num) => {
     return BigInt(Math.ceil(num * 100000000));
+
+};
+
+const getRawTransaction = async (txid) => {
+    let value;
+    await new Promise((resolve) => {
+        rpc.getRawTransaction(txid, async (err, res) => {
+            if (err)
+                console.log(err);
+            else
+                value = res.result;
+
+            return resolve();
+
+	});
+
+    });
+
+    return value;
 
 };
 
@@ -61,6 +79,16 @@ const getBlock = async (hash) => {
 
 };
 
+const addTx = async (txid) => {
+    const txRes = await db.query('SELECT txid FROM txs WHERE txid = $1', [txid]);
+    if (txRes.rows.length == 0) {
+	const raw = await getRawTransaction(txid);
+	await db.query('INSERT INTO txs (txid, raw) VALUES ($1, $2) ON CONFLICT DO NOTHING', [txid, raw]);
+
+    }
+
+};
+
 const sequence = async (data) => {
     const hash = data.subarray(0, 32).toString('hex');
     const cmd = data.subarray(32, 33).toString('ascii');
@@ -82,7 +110,9 @@ const sequence = async (data) => {
 	const block1 = await getBlock(hash);
 
 	if (block1) {
-	    const res = await db.query('INSERT INTO blocks (height, hash, previoushash) VALUES ($1, $2, $3) RETURNING id', [block1.height, block1.hash, block1.previoushash]);
+	    const res = await db.query(
+		'INSERT INTO blocks (height, hash, previoushash, size, weight) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+		[block1.height, block1.hash, block1.previousblockhash, block1.size, block1.weight]);
 	    for (let t = 0; t < block1.tx.length; t++) {
 		console.log('update tx', block1.tx[t], 'to', res.rows[0].id);
 		await db.query('UPDATE txs SET block_id = $1 WHERE txid = $2', [res.rows[0].id, block1.tx[t]]);
@@ -110,18 +140,30 @@ const rawtx = async (data) => {
 
     // record the inputs
     if (tx && tx.vin) {
-	let value_in = 0n;
 	for (let t = 0; t < tx.vin.length; t++) {
 	    const vin = tx.vin[t];
 	    console.log(' ', tx.txid, t + 1, 'of', tx.vin.length, 'destroys', vin.txid, vin.vout);
-	    value_in += toInt(vin.vout);
-	    // add it if we don't have it
-	    const inRes = await db.query('SELECT txid FROM txis WHERE txid = $1 AND idx = $2 AND spent_in_txid = $3', [vin.txid, vin.vout, tx.txid]);
-	    if (inRes.rows.length == 0)
-		await db.query('INSERT INTO txis (txid, idx, spent_in_txid) VALUES ($1, $2, $3)', [vin.txid, vin.vout, tx.txid]);
+	    if (vin.txid) {
+		// add it if we don't have it
+		const inRes = await db.query('SELECT txid FROM txis WHERE txid = $1 AND idx = $2 AND spent_in_txid = $3', [vin.txid, vin.vout, tx.txid]);
+		if (inRes.rows.length == 0) {
+		    await addTx(vin.txid);
+		    await addTx(tx.txid);
+		    await db.query('INSERT INTO txis (txid, idx, spent_in_txid) VALUES ($1, $2, $3)', [vin.txid, vin.vout, tx.txid]);
+
+		}
+
+	    }
+	    else {
+		if (!vin.coinbase) {
+		    console.log(vin);
+		    process.exit();
+
+		}
+
+	    }
 
 	}
-	await db.query('UPDATE txs SET value_in = $2 WHERE txid = $1', [tx.txid, value_in]);
 
     }
     else
@@ -136,8 +178,11 @@ const rawtx = async (data) => {
 	    value_out += toInt(vout.value);
 	    // add it if we don't have it
 	    const outRes = await db.query('SELECT txid FROM txos WHERE txid = $1 AND idx = $2', [tx.txid, vout.n]);
-	    if (outRes.rows.length == 0)
-		await db.query('INSERT INTO txos (txid, idx, amount) VALUES ($1, $2, $3)', [tx.txid, vout.n, toInt(vout.value)]);
+	    if (outRes.rows.length == 0) {
+		await addTx(tx.txid);
+		await db.query('INSERT INTO txos (txid, idx, amount) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [tx.txid, vout.n, toInt(vout.value)]);
+
+	    }
 
 	}
 	await db.query('UPDATE txs SET value_out = $2 WHERE txid = $1', [tx.txid, value_out]);
@@ -161,7 +206,9 @@ const rawtx = async (data) => {
 	    break;
 	default:
 	    console.log('unknown topic', topic.toString());
+
 	}
+
     });
 
     sock.subscribe('rawtx');
