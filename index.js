@@ -15,7 +15,7 @@ const rpc = new RpcClient({
 
 });
 
-const throttle = new Throttle();
+const throttle = new Throttle(3);
 
 const toInt = (num) => {
     return BigInt(Math.ceil(num * 100000000));
@@ -83,7 +83,10 @@ const addTx = async (txid) => {
     const txRes = await db.query('SELECT txid FROM txs WHERE txid = $1', [txid]);
     if (txRes.rows.length == 0) {
 	const raw = await getRawTransaction(txid);
-	await db.query('INSERT INTO txs (txid, raw) VALUES ($1, $2) ON CONFLICT DO NOTHING', [txid, raw]);
+	const tx = await decodeRawTransaction(raw);
+	await db.query(
+	    'INSERT INTO txs (txid, raw) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+	    [txid, raw]);
 
     }
 
@@ -111,8 +114,8 @@ const sequence = async (data) => {
 
 	if (block1) {
 	    const res = await db.query(
-		'INSERT INTO blocks (height, hash, previoushash, size, weight) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-		[block1.height, block1.hash, block1.previousblockhash, block1.size, block1.weight]);
+		'INSERT INTO blocks (height, hash, previoushash) VALUES ($1, $2, $3) RETURNING id',
+		[block1.height, block1.hash, block1.previousblockhash]);
 	    for (let t = 0; t < block1.tx.length; t++) {
 		console.log('update tx', block1.tx[t], 'to', res.rows[0].id);
 		await db.query('UPDATE txs SET block_id = $1 WHERE txid = $2', [res.rows[0].id, block1.tx[t]]);
