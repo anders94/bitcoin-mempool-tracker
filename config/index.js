@@ -5,6 +5,7 @@ module.exports = {
 	port: process.env.RPCPORT || 8332,
 	user: process.env.RPCUSER || 'user',
 	pass: process.env.RPCPASS || 'supersecretpassword'
+
     },
     postgres: {
         host: process.env.PGHOST || 'localhost',
@@ -14,7 +15,11 @@ module.exports = {
         password: process.env.PGPASSWORD || 'supersecretpassword',
         ssl: false,
         debug: false
+
     },
-    zmq: 'tcp://127.0.0.1:28332'
+    zmq: {
+	url: process.env.ZMQURL || 'tcp://127.0.0.1:28332'
+
+    }
 
 }

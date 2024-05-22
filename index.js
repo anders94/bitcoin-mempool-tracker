@@ -197,7 +197,7 @@ const rawtx = async (data) => {
 };
 
 (async () => {
-    sock.connect(config.zmq);
+    sock.connect(config.zmq.url);
 
     sock.on('message', (topic, data) => {
 	switch (topic.toString()) {
