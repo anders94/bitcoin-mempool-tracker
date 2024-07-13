@@ -15,10 +15,24 @@ const rpc = new RpcClient({
 
 });
 
-const throttle = new Throttle(3);
+const throttle = new Throttle(6);
 
 const toInt = (num) => {
     return BigInt(Math.ceil(num * 100000000));
+
+};
+
+const getMemPool = async () => {
+    const res = await new Promise((resolve) => {
+	rpc.getRawMemPool((err, res) => {
+	    if (err)
+		console.log(err);
+	    return resolve(res.result);
+
+	});
+
+    });
+    return res;
 
 };
 
@@ -87,6 +101,7 @@ const addTx = async (txid) => {
 	await db.query(
 	    'INSERT INTO txs (txid, raw) VALUES ($1, $2) ON CONFLICT DO NOTHING',
 	    [txid, raw]);
+	console.log('added', txid);
 
     }
 
@@ -196,6 +211,16 @@ const rawtx = async (data) => {
 
 };
 
+const processMemPool = async () => {
+    const mempool = await getMemPool();
+    for (let m = 0; m < mempool.length; m++) {
+	console.log('mempool', m + 1, 'of', mempool.length);
+	await addTx(mempool[m]);
+
+    }
+
+};
+
 (async () => {
     sock.connect(config.zmq.url);
 
@@ -216,5 +241,12 @@ const rawtx = async (data) => {
 
     sock.subscribe('rawtx');
     sock.subscribe('sequence');
+
+    processMemPool();
+
+    setInterval(async () => {
+	processMemPool()
+
+    }, 5 * 60 * 1000);
 
 })();
