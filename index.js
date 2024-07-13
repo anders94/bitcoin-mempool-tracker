@@ -94,15 +94,21 @@ const getBlock = async (hash) => {
 
 };
 
-const addTx = async (txid) => {
+const addTx = async (txid, seenAt) => {
     const txRes = await db.query('SELECT txid FROM txs WHERE txid = $1', [txid]);
     if (txRes.rows.length == 0) {
 	const raw = await getRawTransaction(txid);
-	const tx = await decodeRawTransaction(raw);
-	await db.query(
-	    'INSERT INTO txs (txid, raw) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-	    [txid, raw]);
-	console.log('added', txid);
+	if (seenAt)
+	    await db.query(
+		'INSERT INTO txs (txid, mempool_seen_at, raw) VALUES ($1, now(), $2) ON CONFLICT DO NOTHING',
+		[txid, raw]);
+	else {
+	    await db.query(
+		'INSERT INTO txs (txid, raw) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+		[txid, raw]);
+	    console.log('added', txid);
+
+	}
 
     }
 
@@ -121,7 +127,7 @@ const sequence = async (data) => {
     case 'R':
 	const seq2 = data.readUIntLE(34, 4);
 	console.log('removing', hash, seq2);
-	// TODO: add if we don't already have this one
+	await addTx(hash); // in case we don't already have it
 	await db.query('UPDATE txs SET mempool_exit = now() WHERE txid = $1', [hash]);
 	break;
     case 'C':
@@ -217,8 +223,9 @@ const processMemPool = async () => {
 	processingMemPool = true;
 	const mempool = await getMemPool();
 	for (let m = 0; m < mempool.length; m++) {
-	    console.log('mempool', m + 1, 'of', mempool.length);
-	    await addTx(mempool[m]);
+	    if ((m + 1) % 250 == 0)
+		console.log('mempool', m + 1, 'of', mempool.length);
+	    await addTx(mempool[m], true);
 
 	}
 	processingMemPool = false;
@@ -253,6 +260,6 @@ const processMemPool = async () => {
     setInterval(async () => {
 	processMemPool()
 
-    }, 15 * 60 * 1000);
+    }, 5 * 60 * 1000);
 
 })();
