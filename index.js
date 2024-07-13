@@ -16,6 +16,7 @@ const rpc = new RpcClient({
 });
 
 const throttle = new Throttle(6);
+let processingMemPool = false;
 
 const toInt = (num) => {
     return BigInt(Math.ceil(num * 100000000));
@@ -212,10 +213,15 @@ const rawtx = async (data) => {
 };
 
 const processMemPool = async () => {
-    const mempool = await getMemPool();
-    for (let m = 0; m < mempool.length; m++) {
-	console.log('mempool', m + 1, 'of', mempool.length);
-	await addTx(mempool[m]);
+    if (!processingMemPool) {
+	processingMemPool = true;
+	const mempool = await getMemPool();
+	for (let m = 0; m < mempool.length; m++) {
+	    console.log('mempool', m + 1, 'of', mempool.length);
+	    await addTx(mempool[m]);
+
+	}
+	processingMemPool = false;
 
     }
 
