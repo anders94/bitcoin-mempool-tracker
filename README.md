@@ -47,3 +47,13 @@ When the application starts, most of the transactions will come from pulling the
 via RPC call. Mempool entry time is not known for these transactions so the `mempool_entry` column will
 be empty. As the system runs, transaction entry and exit should be pushed to the system first so these
 transactions will have the more accurate `mempool_entry` and `mempool_exit` columns populated.
+
+Notes
+-----
+Dump data to CSV files with:
+```
+\copy (select * from txs) to 'txs.csv' with csv delimiter ',' header
+\copy (select * from txis) to 'txis.csv' with csv delimiter ',' header
+\copy (select * from txos) to 'txos.csv' with csv delimiter ',' header
+\copy (select * from blocks) to 'blocks2.csv' with csv delimiter ',' header
+```
