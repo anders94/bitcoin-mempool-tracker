@@ -122,7 +122,7 @@ const sequence = async (data) => {
     case 'A':
 	const seq1 = data.readUIntLE(34, 4);
 	console.log('adding', hash, seq1);
-	await db.query('INSERT INTO txs (txid, mempool_entry) VALUES ($1, now())', [hash]);
+	await db.query('INSERT INTO txs (txid, mempool_entry) VALUES ($1, now()) ON CONFLICT DO NOTHING', [hash]);
 	break;
     case 'R':
 	const seq2 = data.readUIntLE(34, 4);
@@ -174,7 +174,7 @@ const rawtx = async (data) => {
 		if (inRes.rows.length == 0) {
 		    await addTx(vin.txid);
 		    await addTx(tx.txid);
-		    await db.query('INSERT INTO txis (txid, idx, spent_in_txid) VALUES ($1, $2, $3)', [vin.txid, vin.vout, tx.txid]);
+		    await db.query('INSERT INTO txis (txid, idx, spent_in_txid) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [vin.txid, vin.vout, tx.txid]);
 
 		}
 
