@@ -21,6 +21,7 @@ CREATE TABLE txs (
   txid               TEXT            NOT NULL UNIQUE,
   mempool_entry      TIMESTAMP,
   mempool_seen_at    TIMESTAMP,
+  mempool_unseen_at  TIMESTAMP,
   mempool_exit       TIMESTAMP,
   block_id           UUID            REFERENCES blocks(id),
   value_in           BIGINT,
