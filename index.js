@@ -221,8 +221,9 @@ const rawtx = async (data) => {
 const processMemPool = async () => {
     if (!processingMemPool) {
 	processingMemPool = true;
-	// add everything new in the mem pool
 	const mempool = await getMemPool();
+
+	// add everything new in the mem pool
 	for (let m = 0; m < mempool.length; m++) {
 	    if ((m + 1) % 250 == 0)
 		console.log('mempool', m + 1, 'of', mempool.length);
@@ -231,7 +232,7 @@ const processMemPool = async () => {
 	}
 
 	// remove everything not still in the mempool
-	await db.query('UPDATE txs SET mempool_unseen_at = now() WHERE mempool_seen_at IS NOT NULL AND mempool_exit IS NOT NULL AND txid NOT IN ($1)', [mempool]);
+	await db.query('UPDATE txs SET mempool_unseen_at = now() WHERE mempool_seen_at IS NOT NULL AND txid NOT IN ($1)', [mempool]);
 
 	processingMemPool = false;
 
