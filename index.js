@@ -233,7 +233,7 @@ const processMemPool = async () => {
 	}
 
 	// remove everything not still in the mempool
-	await db.query('UPDATE txs SET mempool_unseen_at = now() WHERE mempool_seen_at IS NOT NULL AND txid NOT IN ($1)', [mempool]);
+	await db.query('UPDATE txs SET mempool_unseen_at = now() WHERE mempool_seen_at IS NOT NULL AND mempool_unseen_at IS NULL AND txid <> ALL($1::TEXT[])', [mempool]);
 
 	processingMemPool = false;
 
