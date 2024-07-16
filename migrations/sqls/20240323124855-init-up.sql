@@ -29,8 +29,10 @@ CREATE TABLE txs (
   txsize             INT,
   txvsize            INT,
   txweight           INT,
-  raw                TEXT
+  raw                TEXT,
+  UNIQUE (txid)
 ) WITH (OIDS=FALSE);
+
 
 -- --------------------------------------------------------
 -- -- Table: txis - transaction inputs
@@ -39,7 +41,8 @@ CREATE TABLE txs (
 CREATE TABLE txis (
   txid               TEXT            NOT NULL,
   idx                INT             NOT NULL,
-  spent_in_txid      TEXT            NOT NULL REFERENCES txs(txid)
+  spent_in_txid      TEXT            NOT NULL REFERENCES txs(txid),
+  UNIQUE (txid, idx)
 ) WITH (OIDS=FALSE);
 
 -- --------------------------------------------------------
@@ -49,6 +52,7 @@ CREATE TABLE txis (
 CREATE TABLE txos (
   txid               TEXT            NOT NULL REFERENCES txs(txid),
   idx                INT             NOT NULL,
-  amount             BIGINT          NOT NULL
+  amount             BIGINT          NOT NULL,
+  UNIQUE (txid, idx)
 ) WITH (OIDS=FALSE);
 
