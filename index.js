@@ -181,6 +181,7 @@ const rawtx = async (data) => {
 	    }
 	    else {
 		if (!vin.coinbase) {
+		    console.log('ERROR! Got a vin without a txid that isn\'t a coinbase!');
 		    console.log(vin);
 		    process.exit();
 
