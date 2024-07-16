@@ -37,11 +37,14 @@ which would represent a respend and in this case will be recorded in both tables
 has a `spent_in_txid` column which records the transaction id of the spending transaction but does
 not contain the `amount` column that the `txos` table has.
 
-There are two possible ways a transaction is added to the `txs` table, when a new transaction is pushed
-to the application via ZeroMQ and when a new transaction is noticed after being pulled via an RPC call.
-Pushed transactions populate the `mempool_entry` and `mempool_exit` columns whereas pulled transactions
+There are three possible ways a transaction is added to the `txs` table, when a new transaction is pushed
+to the application via ZeroMQ, when a new transaction is noticed after being pulled via an RPC call and
+when a transaction is added in the process of filling out transaction inputs and outputs. Pushed
+transactions populate the `mempool_entry` and `mempool_exit` columns whereas pulled transactions
 populate the `mempool_seen_at` and `mempool_unseen_at` columns. The `mempool_entry` and `mempool_exit`
-columns will always be more accurate than `mempool_seen_at` and `mempool_unseen_at`.
+columns will always be more accurate than `mempool_seen_at` and `mempool_unseen_at`. All other
+transactions that are added in the process of filling out mempool transaction inputs and outputs lack
+all `mempool_*` entries.
 
 When the application starts, most of the transactions will come from pulling the contents of the mempool
 via RPC call. Mempool entry time is not known for these transactions so the `mempool_entry` column will
