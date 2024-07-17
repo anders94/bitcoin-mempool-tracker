@@ -40,17 +40,13 @@ has a `spent_in_txid` column which records the transaction id of the spending tr
 The ways a transaction is added to the `txs` table include:
 * A new transaction is pushed to the mempool via publication through ZeroMQ
 * A new transaction is found in the mempool via dumping the mempool through the RPC
-* An existing transaction is referenced by a mempool transaction input or output
+* An existing transaction is referenced by a mempool transaction input
 
 Pushed transactions populate the `mempool_entry` and `mempool_exit` columns whereas pulled transactions
 populate the `mempool_seen_at` and `mempool_unseen_at` columns. Associated transactions that weren't
 in the mempool have no `mempool_*` information. The `mempool_entry` and `mempool_exit` columns will
-always be more accurate than `mempool_seen_at` and `mempool_unseen_at`.
-
-When the application starts, most of the transactions will come from pulling the contents of the mempool
-via the RPC. Mempool entry time is not known for these transactions so the `mempool_entry` column will
-be empty. As the system runs, transaction entry and exit should be pushed to the system first so these
-transactions will have the more accurate `mempool_entry` and `mempool_exit` columns populated.
+always be more accurate than `mempool_seen_at` and `mempool_unseen_at`. Initially, most transactions will
+come from the RPC dump of the mempool whereas in time, most new transactions will be pushed in via ZeroMQ.
 
 Notes
 -----
