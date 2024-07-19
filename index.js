@@ -95,7 +95,7 @@ const getBlock = async (hash) => {
 };
 
 const addTx = async (txid, seenAt) => {
-    const txRes = await db.query('SELECT txid FROM txs WHERE txid = $1', [txid]);
+    const txRes = await db.query('SELECT mempool_seen_at IS NULL AS mempool_seen_at_unpopulated FROM txs WHERE txid = $1', [txid]);
     if (txRes.rows.length == 0) {
 	const raw = await getRawTransaction(txid);
 	if (seenAt)
@@ -111,6 +111,8 @@ const addTx = async (txid, seenAt) => {
 	}
 
     }
+    else if (seenAt && txRes.rows[0].mempool_seen_at_unpopulated) // update existing transactions
+	await db.query('UPDATE txs SET mempool_seen_at = now() WHERE txid = $1', [txid]);
 
 };
 
@@ -232,8 +234,14 @@ const processMemPool = async () => {
 
 	}
 
-	// remove everything not still in the mempool
-	await db.query('UPDATE txs SET mempool_unseen_at = now() WHERE mempool_seen_at IS NOT NULL AND mempool_unseen_at IS NULL AND txid <> ALL($1::TEXT[])', [mempool]);
+	// mark the exit for everything not still in the mempool
+	await db.query(
+	    `UPDATE txs
+               SET mempool_unseen_at = now()
+             WHERE mempool_seen_at IS NOT NULL
+               AND mempool_unseen_at IS NULL
+               AND txid <> ALL($1::TEXT[])`,
+	    [mempool]);
 
 	processingMemPool = false;
 

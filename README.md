@@ -43,10 +43,10 @@ The ways a transaction is added to the `txs` table include:
 * An existing transaction is referenced by a mempool transaction input
 
 Pushed transactions populate the `mempool_entry` and `mempool_exit` columns whereas pulled transactions
-populate the `mempool_seen_at` and `mempool_unseen_at` columns. Associated transactions that weren't
-in the mempool have no `mempool_*` information. The `mempool_entry` and `mempool_exit` columns will
-always be more accurate than `mempool_seen_at` and `mempool_unseen_at`. Initially, most transactions will
-come from the RPC dump of the mempool whereas in time, most new transactions will be pushed in via ZeroMQ.
+populate the `mempool_seen_at` and `mempool_unseen_at` columns. Transactions with no `mempool_*`
+information were not seen in the mempool and were added in the process of filling out inputs. Use
+`mempool_seen_at` and `mempool_unseen_at` primarily. If `mempool_entry` or `mempool_exit` is populated,
+use that instead because that will be more accurate.
 
 Notes
 -----
