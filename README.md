@@ -34,19 +34,19 @@ Detail
 Transactions are recorded in the `txs` table. Inputs to transactions are recorded in the `txis` table
 while outputs are recorded in the `txos` table. A transaction output can become a transaction input
 which would represent a respend and in this case will be recorded in both tables. The `txis` table
-has a `spent_in_txid` column which records the transaction id of the spending transaction but does
-not contain the `amount` column that the `txos` table has.
+has a `spent_in_txid` column which records the transaction id of the spending transaction wheras the
+`txos` table contains an `amount` column.
 
-There are two possible ways a transaction is added to the `txs` table, when a new transaction is pushed
-to the application via ZeroMQ and when a new transaction is noticed after being pulled via an RPC call.
+The ways a transaction is added to the `txs` table include:
+* A new transaction is pushed to the mempool via publication through ZeroMQ
+* A new transaction is found in the mempool via dumping the mempool through the RPC
+* An existing transaction is referenced by a mempool transaction input
+
 Pushed transactions populate the `mempool_entry` and `mempool_exit` columns whereas pulled transactions
-populate the `mempool_seen_at` and `mempool_unseen_at` columns. The `mempool_entry` and `mempool_exit`
-columns will always be more accurate than `mempool_seen_at` and `mempool_unseen_at`.
-
-When the application starts, most of the transactions will come from pulling the contents of the mempool
-via RPC call. Mempool entry time is not known for these transactions so the `mempool_entry` column will
-be empty. As the system runs, transaction entry and exit should be pushed to the system first so these
-transactions will have the more accurate `mempool_entry` and `mempool_exit` columns populated.
+populate the `mempool_seen_at` and `mempool_unseen_at` columns. Transactions with no `mempool_*`
+information were not seen in the mempool and were added in the process of filling out inputs. Use
+`mempool_seen_at` and `mempool_unseen_at` primarily. If `mempool_entry` or `mempool_exit` is populated,
+use that instead because that will be more accurate.
 
 Notes
 -----
