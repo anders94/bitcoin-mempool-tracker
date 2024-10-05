@@ -3,9 +3,9 @@ const db = require('./db');
 const Throttle = require('./throttle');
 
 const config = require('./config');
-const limit = 1000000;
+const limit = 2000000;
 
-const throttle = new Throttle(4);
+const throttle = new Throttle(8);
 
 const rpc = new RpcClient({
     protocol: config.rpc.protocol,
@@ -55,7 +55,7 @@ const decodeRawTransaction = async (tx) => {
 
 	throttle.enqueue(async () => {
 	    if (i % 1000 == 0)
-		console.log(new Date(), row.txid);
+		console.log(new Date(), i, '/', res.rows.length, row.txid);
 	    const tx = await decodeRawTransaction(row.raw);
 	    await db.query('UPDATE txs SET txsize = $1, txvsize = $2, txweight = $3 WHERE txid = $4', [tx.size, tx.vsize, tx.weight, row.txid]);
 
